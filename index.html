@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Infinite Runner — Step 1</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{width:100%;height:100%;overflow:hidden;background:#03060b;font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif}
+body{touch-action:none}
+#gameContainer{position:relative;width:100vw;height:100vh;overflow:hidden;background:#03060b}
+#gameCanvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
+.screen{position:absolute;inset:0;display:flex;justify-content:center;align-items:center;padding:20px;background:radial-gradient(circle at 50% 42%,rgba(28,65,100,.22),rgba(0,0,0,.82) 72%);z-index:20;transition:opacity .35s ease}
+.hidden{display:none!important}
+.panel{position:relative;width:min(92vw,520px);padding:42px 30px;text-align:center;border:1px solid rgba(255,255,255,.12);border-radius:28px;background:linear-gradient(145deg,rgba(10,18,30,.94),rgba(4,8,15,.90));box-shadow:0 25px 100px rgba(0,0,0,.65),inset 0 1px rgba(255,255,255,.08);backdrop-filter:blur(20px);overflow:hidden}
+.panel:before{content:"";position:absolute;inset:-2px;background:radial-gradient(circle at 50% 0,rgba(77,225,255,.16),transparent 45%);pointer-events:none}
+.panel>*{position:relative}
+.panel h1{color:#fff;font-size:clamp(34px,8vw,62px);letter-spacing:5px;line-height:1;margin-bottom:13px;text-shadow:0 0 35px rgba(77,225,255,.22)}
+.subtitle{color:#9eafc2;font-size:14px;letter-spacing:2px;text-transform:uppercase;margin-bottom:30px}
+button{border:0;cursor:pointer;user-select:none;font-family:inherit}
+#startButton,#restartButton{min-width:220px;padding:16px 32px;border-radius:999px;background:linear-gradient(180deg,#fff,#dce9f2);color:#071019;font-size:15px;font-weight:900;letter-spacing:1.5px;box-shadow:0 10px 35px rgba(255,255,255,.13),0 0 0 1px rgba(255,255,255,.35);transition:transform .15s,box-shadow .15s}
+#startButton:hover,#restartButton:hover{transform:translateY(-2px) scale(1.02);box-shadow:0 15px 42px rgba(77,225,255,.2)}
+#startButton:active,#restartButton:active{transform:scale(.97)}
+.controls{display:flex;justify-content:center;gap:35px;margin-top:28px;color:#718298;font-size:12px;line-height:1.8}
+.controls div{display:flex;flex-direction:column}
+.controls strong{color:#dbe8f3;margin-bottom:5px;font-size:12px;letter-spacing:1px}
+#hud{position:absolute;top:16px;left:16px;right:16px;display:flex;justify-content:space-between;pointer-events:none;z-index:10}
+.hudGroup{display:flex;gap:9px}
+.hudItem{min-width:112px;padding:9px 13px;border-radius:14px;background:rgba(3,8,14,.55);border:1px solid rgba(255,255,255,.11);box-shadow:0 8px 25px rgba(0,0,0,.22),inset 0 1px rgba(255,255,255,.05);backdrop-filter:blur(12px);color:#fff}
+.hudLabel{display:block;color:#71849a;font-size:9px;font-weight:800;letter-spacing:1.5px;margin-bottom:3px}
+.hudItem span:last-child{font-size:17px;font-weight:850;letter-spacing:.3px}
+#mobileControls{position:absolute;left:0;right:0;bottom:max(18px,env(safe-area-inset-bottom));display:none;justify-content:center;gap:10px;z-index:15}
+#mobileControls button{width:58px;height:58px;border-radius:18px;background:rgba(3,9,16,.55);border:1px solid rgba(255,255,255,.16);color:#e8f6ff;font-size:20px;box-shadow:0 8px 25px rgba(0,0,0,.3),inset 0 1px rgba(255,255,255,.08);backdrop-filter:blur(12px)}
+#mobileControls button:active{transform:scale(.9);background:rgba(77,225,255,.18)}
+#tip{margin-top:20px;color:#617388;font-size:11px;letter-spacing:.4px}
+@media(max-width:768px){
+#mobileControls{display:flex}.controls{display:none}.panel{padding:34px 20px}.panel h1{font-size:36px;letter-spacing:3px}
+#hud{top:10px;left:10px;right:10px}.hudGroup{gap:6px}.hudItem{min-width:92px;padding:7px 10px}.hudItem span:last-child{font-size:14px}
+}
+@media(max-height:600px){#mobileControls{bottom:8px}#mobileControls button{width:50px;height:50px;border-radius:15px}.panel{padding:25px 18px}}
+</style>
+</head>
+<body>
+<main id="gameContainer">
+<canvas id="gameCanvas"></canvas>
+<section id="startScreen" class="screen"><div class="panel"><h1>INFINITE RUNNER</h1><p class="subtitle">Run • Jump • Slide • Survive</p><button id="startButton">START RUN</button><div class="controls"><div><strong>PC</strong><span>← →</span><span>↑ Jump</span><span>↓ Slide</span></div><div><strong>Mobile</strong><span>Swipe ← →</span><span>Swipe ↑</span><span>Swipe ↓</span></div></div></div></section>
+<div id="hud"><div class="hudGroup"><div class="hudItem"><span class="hudLabel">DISTANCE</span><span id="distanceValue">0 m</span></div></div><div class="hudGroup"><div class="hudItem"><span class="hudLabel">SPEED</span><span id="speedValue">0</span></div></div></div>
+<section id="gameOverScreen" class="screen hidden"><div class="panel"><h1>GAME OVER</h1><p style="color:#aeb9c9;margin-bottom:25px">Distance: <strong id="finalDistance" style="color:#fff">0 m</strong></p><button id="restartButton">RUN AGAIN</button></div></section>
+<div id="mobileControls"><button id="leftButton" aria-label="Move left">◀</button><button id="jumpButton" aria-label="Jump">▲</button><button id="slideButton" aria-label="Slide">▼</button><button id="rightButton" aria-label="Move right">▶</button></div>
+</main>
+<script>
+"use strict";
+const canvas=document.getElementById("gameCanvas"),ctx=canvas.getContext("2d",{alpha:false});
+const startScreen=document.getElementById("startScreen"),gameOverScreen=document.getElementById("gameOverScreen"),startButton=document.getElementById("startButton"),restartButton=document.getElementById("restartButton");
+const distanceValue=document.getElementById("distanceValue"),speedValue=document.getElementById("speedValue"),finalDistance=document.getElementById("finalDistance");
+const leftButton=document.getElementById("leftButton"),rightButton=document.getElementById("rightButton"),jumpButton=document.getElementById("jumpButton"),slideButton=document.getElementById("slideButton");
+const THEME={skyTop:"#06101d",skyMid:"#10283b",skyBottom:"#314b5d",horizon:"#78a6b8",road:"#252b31",roadEdge:"#8996a2",lane:"#8d9ba8",player:"#4de1ff",playerDark:"#087c9b",barrier:"#ff4e4e",barrierDark:"#a31c1c",vehicle:"#e8b93f",vehicleDark:"#695000",tree:"#193d38",treeLight:"#2c6959",building:"#182534",buildingLight:"#26394b",light:"#ffe8a5",white:"#fff"};
+const GRAPHICS={quality:"auto",particles:true,shadows:true,environmentDetail:true,speedEffects:true,maxParticles:170,dprMax:2};
+let width=0,height=0,dpr=1;
+function resizeCanvas(){dpr=Math.min(window.devicePixelRatio||1,GRAPHICS.dprMax);width=window.innerWidth;height=window.innerHeight;canvas.width=Math.floor(width*dpr);canvas.height=Math.floor(height*dpr);canvas.style.width=width+"px";canvas.style.height=height+"px";ctx.setTransform(dpr,0,0,dpr,0,0);updateRoadGeometry()}
+window.addEventListener("resize",resizeCanvas);
+const LANES=3,OBSTACLE_TYPES={BARRIER:"barrier",VEHICLE:"vehicle",PIT:"pit"};
+const game={running:false,gameOver:false,lastTime:0,elapsed:0,distance:0,speed:12,maxSpeed:30,acceleration:.75,spawnTimer:0,spawnInterval:1.15,obstacles:[],particles:[],environment:[],roadOffset:0,flash:0,shake:0};
+const camera={x:0,y:0,zoom:1,targetY:0,bob:0};
+const player={lane:1,targetLane:1,lanePosition:1,x:0,y:0,width:42,height:70,baseHeight:70,slideHeight:40,verticalVelocity:0,jumpVelocity:720,gravity:1900,groundY:0,isJumping:false,isSliding:false,slideTimer:0,slideDuration:.65,runAnimation:0,rotation:0};
+const road={horizonY:0,bottomY:0,topWidth:0,bottomWidth:0,laneWidth:0};
+function clamp(v,min,max){return Math.max(min,Math.min(max,v))}
+function lerp(a,b,t){return a+(b-a)*t}
+function random(min,max){return Math.random()*(max-min)+min}
+function randomInt(min,max){return Math.floor(Math.random()*(max-min+1))+min}
+function updateRoadGeometry(){road.horizonY=height*.29;road.bottomY=height*.96;road.topWidth=Math.min(width*.16,175);road.bottomWidth=Math.min(width*.94,940);road.laneWidth=road.bottomWidth/LANES}
+function getRoadWidth(z){return lerp(road.topWidth,road.bottomWidth,z)}
+function getRoadY(z){return lerp(road.horizonY,road.bottomY,z*z)}
+function getLaneX(lane,z){const rw=getRoadWidth(z),left=width/2-rw/2,lw=rw/LANES;return left+lw*(lane+.5)}
+function updatePlayerPosition(){player.lanePosition=lerp(player.lanePosition,player.targetLane,.20);player.lane=player.targetLane;player.x=getLaneX(player.lanePosition,1)+camera.x;player.groundY=road.bottomY-35+camera.y}
+function moveLeft(){if(game.running)player.targetLane=clamp(player.targetLane-1,0,LANES-1)}
+function moveRight(){if(game.running)player.targetLane=clamp(player.targetLane+1,0,LANES-1)}
+function jump(){if(game.running&&!player.isJumping&&!player.isSliding){player.verticalVelocity=player.jumpVelocity;player.isJumping=true;game.shake=.12}}
+function slide(){if(game.running&&!player.isJumping&&!player.isSliding){player.isSliding=true;player.slideTimer=player.slideDuration}}
+window.addEventListener("keydown",e=>{if(["ArrowLeft","ArrowRight","ArrowUp","ArrowDown"].includes(e.key))e.preventDefault();if(e.key==="ArrowLeft")moveLeft();else if(e.key==="ArrowRight")moveRight();else if(e.key==="ArrowUp")jump();else if(e.key==="ArrowDown")slide()});
+leftButton.addEventListener("pointerdown",moveLeft);rightButton.addEventListener("pointerdown",moveRight);jumpButton.addEventListener("pointerdown",jump);slideButton.addEventListener("pointerdown",slide);
+let touchStartX=0,touchStartY=0;
+canvas.addEventListener("touchstart",e=>{const t=e.changedTouches[0];touchStartX=t.clientX;touchStartY=t.clientY},{passive:true});
+canvas.addEventListener("touchend",e=>{const t=e.changedTouches[0],dx=t.clientX-touchStartX,dy=t.clientY-touchStartY;if(Math.abs(dx)<35&&Math.abs(dy)<35)return;if(Math.abs(dx)>Math.abs(dy)){if(dx>0)moveRight();else moveLeft()}else{if(dy<0)jump();else slide()}},{passive:true});
+function createObstacle(type,lane){return{type,lane,z:0,passed:false,seed:Math.random()*10}}
+function spawnObstaclePattern(){const pattern=randomInt(0,5);if(pattern===0||pattern===1||pattern===3||pattern===5){const types=[OBSTACLE_TYPES.BARRIER,OBSTACLE_TYPES.VEHICLE,OBSTACLE_TYPES.PIT,OBSTACLE_TYPES.BARRIER];game.obstacles.push(createObstacle(types[pattern===5?3:pattern],randomInt(0,2)));return}if(pattern===2){const safe=randomInt(0,2);for(let lane=0;lane<LANES;lane++)if(lane!==safe)game.obstacles.push(createObstacle(OBSTACLE_TYPES.BARRIER,lane));return}const a=randomInt(0,2);let b=randomInt(0,2);while(b===a)b=randomInt(0,2);game.obstacles.push(createObstacle(OBSTACLE_TYPES.VEHICLE,a));game.obstacles.push(createObstacle(OBSTACLE_TYPES.BARRIER,b))}
+function updateObstacles(dt){const movement=game.speed*dt*.035;for(const o of game.obstacles)o.z+=movement;game.obstacles=game.obstacles.filter(o=>o.z<1.18)}
+function resetEnvironment(){game.environment=[];for(let i=0;i<65;i++){const side=Math.random()<.5?-1:1;game.environment.push({type:Math.random()<.58?"tree":"building",side,x:random(.08,.40)*side,z:random(.03,1.05),scale:random(.55,1.25),seed:Math.random()*100})}}
+function updateEnvironment(dt){const movement=game.speed*dt*.018;for(const e of game.environment){e.z+=movement*(e.type==="building"?.75:1);if(e.z>1.08){e.z=random(.02,.12);e.x=random(.08,.40)*(Math.random()<.5?-1:1);e.scale=random(.55,1.25)}}}
+function getPlayerCollisionBox(){const h=player.isSliding?player.slideHeight:player.baseHeight;return{x:player.x-player.width/2,y:player.groundY-h-player.y,width:player.width,height:h}}
+function getObstacleCollisionBox(o){const z=o.z,rw=getRoadWidth(z),lw=rw/LANES,x=getLaneX(o.lane,z)+camera.x,y=getRoadY(z)+camera.y,s=.25+z*.9;if(o.type===OBSTACLE_TYPES.PIT)return{x:x-lw*.42,y:y-5,width:lw*.84,height:20};if(o.type===OBSTACLE_TYPES.VEHICLE)return{x:x-28*s,y:y-70*s,width:56*s,height:70*s};return{x:x-35*s,y:y-45*s,width:70*s,height:45*s}}
+function rectanglesOverlap(a,b){return a.x<b.x+b.width&&a.x+a.width>b.x&&a.y<b.y+b.height&&a.y+a.height>b.y}
+function checkCollisions(){const pb=getPlayerCollisionBox();for(const o of game.obstacles){if(o.z<.82||o.z>1.08)continue;if(o.type===OBSTACLE_TYPES.PIT){if(Math.abs(player.lanePosition-o.lane)<.35){gameOver();return}continue}if(rectanglesOverlap(pb,getObstacleCollisionBox(o))){gameOver();return}}}
+function updateDifficulty(dt){game.speed=Math.min(game.speed+game.acceleration*dt*.08,game.maxSpeed);game.spawnInterval=Math.max(.55,1.15-(game.speed-12)*.025)}
+function updateSpawning(dt){game.spawnTimer+=dt;if(game.spawnTimer>=game.spawnInterval){game.spawnTimer=0;spawnObstaclePattern()}}
+function updateDistance(dt){game.distance+=game.speed*dt*.45}
+function updatePlayer(dt){updatePlayerPosition();if(player.isJumping){player.y+=player.verticalVelocity*dt;player.verticalVelocity-=player.gravity*dt;player.rotation=lerp(player.rotation,player.verticalVelocity<0?.04:-.03,.12);if(player.y<=0&&player.verticalVelocity<0){player.y=0;player.verticalVelocity=0;player.isJumping=false;player.rotation=0;game.shake=.16;spawnLandingParticles()}}else player.rotation=lerp(player.rotation,0,.18);if(player.isSliding){player.slideTimer-=dt;if(player.slideTimer<=0){player.slideTimer=0;player.isSliding=false}}player.runAnimation+=dt*game.speed*.15}
+function updateCamera(dt){camera.bob=player.isJumping?0:Math.sin(player.runAnimation*2)*1.4;camera.targetY=-player.y*.025+camera.bob;camera.y=lerp(camera.y,camera.targetY,.10);game.shake=Math.max(0,game.shake-dt);camera.x=game.shake>0?random(-1,1)*(game.shake/.16)*5:0}
+function spawnParticle(x,y,vx,vy,life,size,type="dust"){if(game.particles.length>=GRAPHICS.maxParticles)return;game.particles.push({x,y,vx,vy,life,maxLife:life,size,type,alpha:1,rotation:random(0,6.28),vr:random(-4,4)})}
+function createDust(){if(!GRAPHICS.particles||Math.random()>.45)return;for(let i=0;i<2;i++)spawnParticle(player.x+random(-15,15),player.groundY+random(0,8),random(-25,25),random(-35,-10),random(.2,.5),random(2,5),"dust")}
+function spawnLandingParticles(){if(!GRAPHICS.particles)return;for(let i=0;i<10;i++)spawnParticle(player.x+random(-20,20),player.groundY,random(-90,90),random(-70,-15),random(.25,.55),random(2,5),"impact")}
+function updateParticles(dt){for(const p of game.particles){p.life-=dt;p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=p.type==="impact"?260:100;p.rotation+=p.vr*dt}game.particles=game.particles.filter(p=>p.life>0)}
+function drawBackground(){const sky=ctx.createLinearGradient(0,0,0,height);sky.addColorStop(0,THEME.skyTop);sky.addColorStop(.52,THEME.skyMid);sky.addColorStop(1,THEME.skyBottom);ctx.fillStyle=sky;ctx.fillRect(0,0,width,height);const glow=ctx.createRadialGradient(width*.5,road.horizonY,0,width*.5,road.horizonY,width*.65);glow.addColorStop(0,"rgba(120,190,210,.20)");glow.addColorStop(.5,"rgba(50,100,125,.08)");glow.addColorStop(1,"rgba(0,0,0,0)");ctx.fillStyle=glow;ctx.fillRect(0,0,width,height);drawClouds();drawMountains();drawDistantCity()}
+function drawClouds(){ctx.save();ctx.globalAlpha=.10;ctx.fillStyle="#d9f1f5";for(let i=0;i<5;i++){const x=((i*260+game.elapsed*8)%(width+350))-175,y=height*.10+(i%3)*32;ctx.beginPath();ctx.ellipse(x,y,80,18,0,0,Math.PI*2);ctx.fill();ctx.beginPath();ctx.ellipse(x+45,y-8,48,20,0,0,Math.PI*2);ctx.fill()}ctx.restore()}
+function drawMountains(){const h=road.horizonY;for(let layer=0;layer<3;layer++){ctx.fillStyle=layer===0?"rgba(7,18,28,.90)":layer===1?"rgba(10,26,38,.72)":"rgba(15,39,50,.55)";ctx.beginPath();ctx.moveTo(0,h+20);const n=8+layer*2;for(let i=0;i<=n;i++){const x=i/n*width,peak=h-random(30+layer*8,90+layer*15);ctx.lineTo(x,peak)}ctx.lineTo(width,height);ctx.lineTo(0,height);ctx.closePath();ctx.fill()}}
+function drawDistantCity(){const h=road.horizonY+18;ctx.save();ctx.globalAlpha=.30;for(let i=0;i<24;i++){const w=10+(i%5)*4,hh=18+(i%7)*10,x=i*(width/24),y=h-hh;ctx.fillStyle=i%3===0?THEME.buildingLight:THEME.building;ctx.fillRect(x,y,w,hh);if(i%4===0){ctx.fillStyle=THEME.light;ctx.globalAlpha=.24;ctx.fillRect(x+3,y+5,2,2);ctx.fillRect(x+7,y+12,2,2);ctx.globalAlpha=.30}}ctx.restore()}
+function drawRoad(){const h=road.horizonY,b=road.bottomY,tw=road.topWidth,bw=road.bottomWidth;const grad=ctx.createLinearGradient(0,h,0,b);grad.addColorStop(0,"#313941");grad.addColorStop(.55,THEME.road);grad.addColorStop(1,"#151a1f");ctx.fillStyle=grad;ctx.beginPath();ctx.moveTo(width/2-tw/2,h);ctx.lineTo(width/2+tw/2,h);ctx.lineTo(width/2+bw/2,b);ctx.lineTo(width/2-bw/2,b);ctx.closePath();ctx.fill();ctx.strokeStyle="rgba(170,190,200,.55)";ctx.lineWidth=4;ctx.beginPath();ctx.moveTo(width/2-tw/2,h);ctx.lineTo(width/2-bw/2,b);ctx.moveTo(width/2+tw/2,h);ctx.lineTo(width/2+bw/2,b);ctx.stroke();drawRoadTexture();drawLaneDivider(1/3);drawLaneDivider(2/3);drawRoadsideMarkers()}
+function drawRoadTexture(){ctx.save();ctx.globalAlpha=.10;for(let i=0;i<24;i++){const z=(i/24+game.roadOffset*1.8)%1,y=getRoadY(z),rw=getRoadWidth(z),x1=width/2-rw*.42,x2=width/2+rw*.42;ctx.strokeStyle=i%2?"#b5c0c6":"#10161b";ctx.lineWidth=Math.max(1,z*3);ctx.beginPath();ctx.moveTo(x1,y);ctx.lineTo(x2,y);ctx.stroke()}ctx.restore()}
+function drawLaneDivider(position){const segments=18;for(let i=0;i<segments;i++){const z1=(i/segments+game.roadOffset)%1,z2=Math.min(z1+.045,1);if(z2<=z1)continue;const y1=getRoadY(z1),y2=getRoadY(z2),rw1=getRoadWidth(z1),rw2=getRoadWidth(z2),x1=width/2-rw1/2+rw1*position,x2=width/2-rw2/2+rw2*position;ctx.strokeStyle="rgba(220,230,235,.55)";ctx.lineWidth=Math.max(1,z1*5);ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke()}}
+function drawRoadsideMarkers(){for(let i=0;i<14;i++){const z=(i/14+game.roadOffset*1.25)%1,y=getRoadY(z),rw=getRoadWidth(z),s=.3+z*1.1,off=rw*.57;for(const side of [-1,1]){const x=width/2+off*side;ctx.fillStyle="rgba(210,225,230,.65)";ctx.fillRect(x-2*s,y-18*s,4*s,18*s);ctx.fillStyle=THEME.light;ctx.fillRect(x-3*s,y-20*s,6*s,3*s)}}}
+function drawEnvironment(){const sorted=[...game.environment].sort((a,b)=>a.z-b.z);for(const e of sorted){const rw=getRoadWidth(e.z),x=width/2+e.x*rw,y=getRoadY(e.z),s=(.15+e.z*.95)*e.scale;if(e.type==="tree")drawTree(x,y,s);else drawBuilding(x,y,s,e.seed)}}
+function drawTree(x,y,s){if(s<.15)return;if(GRAPHICS.shadows){ctx.fillStyle="rgba(0,0,0,.20)";ctx.beginPath();ctx.ellipse(x,y+3,18*s,5*s,0,0,Math.PI*2);ctx.fill()}ctx.fillStyle="#4c3624";ctx.fillRect(x-3*s,y-34*s,6*s,34*s);ctx.fillStyle=THEME.tree;ctx.beginPath();ctx.arc(x,y-45*s,18*s,0,Math.PI*2);ctx.fill();ctx.fillStyle=THEME.treeLight;ctx.beginPath();ctx.arc(x-7*s,y-54*s,12*s,0,Math.PI*2);ctx.fill()}
+function drawBuilding(x,y,s,seed){const w=28*s,h=75*s;if(GRAPHICS.shadows){ctx.fillStyle="rgba(0,0,0,.25)";ctx.fillRect(x-w/2+5*s,y-h,w,h)}ctx.fillStyle=THEME.building;ctx.fillRect(x-w/2,y-h,w,h);ctx.fillStyle=THEME.buildingLight;ctx.fillRect(x-w*.38,y-h*.90,w*.76,h*.06);ctx.fillStyle="rgba(255,225,140,.42)";for(let r=0;r<4;r++)for(let c=0;c<2;c++)if(((Math.floor(seed)+r+c)%3)!==0)ctx.fillRect(x-w*.30+c*w*.30,y-h*.75+r*h*.16,3*s,5*s)}
+function drawPit(o){const z=o.z,rw=getRoadWidth(z),lw=rw/LANES,x=getLaneX(o.lane,z)+camera.x,y=getRoadY(z)+camera.y,pw=lw*.82,ph=Math.max(8,z*35);const g=ctx.createRadialGradient(x,y,0,x,y,pw*.6);g.addColorStop(0,"#000");g.addColorStop(.7,"#020305");g.addColorStop(1,"rgba(0,0,0,.2)");ctx.fillStyle=g;ctx.beginPath();ctx.ellipse(x,y,pw/2,ph/2,0,0,Math.PI*2);ctx.fill();ctx.strokeStyle="rgba(0,0,0,.9)";ctx.lineWidth=4;ctx.stroke()}
+function drawBarrier(o){const z=o.z,x=getLaneX(o.lane,z)+camera.x,y=getRoadY(z)+camera.y,s=.25+z*.9,w=70*s,h=45*s;if(GRAPHICS.shadows){ctx.fillStyle="rgba(0,0,0,.35)";ctx.beginPath();ctx.ellipse(x,y,w*.55,h*.18,0,0,Math.PI*2);ctx.fill()}ctx.fillStyle=THEME.barrierDark;ctx.fillRect(x-w/2,y-h,w,h);ctx.fillStyle=THEME.barrier;ctx.fillRect(x-w/2,y-h,w,h*.58);ctx.fillStyle="#fff";ctx.save();ctx.beginPath();ctx.rect(x-w/2,y-h,w,h);ctx.clip();ctx.translate(x,y-h/2);ctx.rotate(-.45);for(let i=-3;i<4;i++)ctx.fillRect(i*22*s,-h,9*s,h*2);ctx.restore();ctx.fillStyle="rgba(255,255,255,.45)";ctx.fillRect(x-w*.42,y-h*.93,w*.84,2*s)}
+function drawVehicle(o){const z=o.z,x=getLaneX(o.lane,z)+camera.x,y=getRoadY(z)+camera.y,s=.25+z*.9,w=56*s,h=72*s;if(GRAPHICS.shadows){ctx.fillStyle="rgba(0,0,0,.42)";ctx.beginPath();ctx.ellipse(x,y,w*.65,h*.15,0,0,Math.PI*2);ctx.fill()}const body=ctx.createLinearGradient(x-w/2,y-h,x+w/2,y);body.addColorStop(0,"#ffe17a");body.addColorStop(.45,THEME.vehicle);body.addColorStop(1,THEME.vehicleDark);ctx.fillStyle=body;ctx.fillRect(x-w/2,y-h,w,h);ctx.fillStyle="#18212b";ctx.fillRect(x-w*.32,y-h*.63,w*.64,h*.22);ctx.fillStyle="rgba(255,255,255,.25)";ctx.fillRect(x-w*.28,y-h*.59,w*.56,h*.035);ctx.fillStyle=THEME.light;ctx.fillRect(x-w*.33,y-h*.18,w*.18,h*.10);ctx.fillRect(x+w*.15,y-h*.18,w*.18,h*.10);ctx.fillStyle="#111";ctx.fillRect(x-w*.51,y-h*.32,w*.10,h*.22);ctx.fillRect(x+w*.41,y-h*.32,w*.10,h*.22)}
+function drawObstacles(){[...game.obstacles].sort((a,b)=>a.z-b.z).forEach(o=>{if(o.type===OBSTACLE_TYPES.PIT)drawPit(o);else if(o.type===OBSTACLE_TYPES.VEHICLE)drawVehicle(o);else drawBarrier(o)})}
+function drawPlayer(){const x=player.x,h=player.isSliding?player.slideHeight:player.baseHeight,bottom=player.groundY-player.y,top=bottom-h;if(GRAPHICS.shadows){const shadowScale=clamp(1-player.y/230,.35,1);ctx.fillStyle=`rgba(0,0,0,${.38*shadowScale})`;ctx.beginPath();ctx.ellipse(x,player.groundY+5,27*shadowScale,8*shadowScale,0,0,Math.PI*2);ctx.fill()}ctx.save();ctx.translate(x,top+h*.52);ctx.rotate(player.rotation);const bodyH=player.isSliding?h*.52:h*.64,bodyTop=-bodyH*.25;const grad=ctx.createLinearGradient(-20,0,20,0);grad.addColorStop(0,THEME.playerDark);grad.addColorStop(.5,THEME.player);grad.addColorStop(1,"#b8f5ff");ctx.fillStyle=grad;ctx.fillRect(-16,bodyTop,32,bodyH);if(player.isSliding){ctx.fillStyle="#f1c7a0";ctx.beginPath();ctx.arc(17,-bodyH*.02,10,0,Math.PI*2);ctx.fill();ctx.fillStyle="#20242b";ctx.beginPath();ctx.arc(17,-bodyH*.06,10,Math.PI,Math.PI*2);ctx.fill()}else{ctx.fillStyle="#f1c7a0";ctx.beginPath();ctx.arc(0,-bodyH*.53,11,0,Math.PI*2);ctx.fill();ctx.fillStyle="#20242b";ctx.beginPath();ctx.arc(0,-bodyH*.57,11,Math.PI,Math.PI*2);ctx.fill();const a=Math.sin(player.runAnimation)*5;ctx.strokeStyle=THEME.playerDark;ctx.lineWidth=7;ctx.lineCap="round";ctx.beginPath();ctx.moveTo(-7,bodyH*.35);ctx.lineTo(-11-a,bodyH*.72);ctx.moveTo(7,bodyH*.35);ctx.lineTo(11+a,bodyH*.72);ctx.stroke();ctx.strokeStyle=THEME.player;ctx.lineWidth=6;ctx.beginPath();ctx.moveTo(-13,bodyTop+9);ctx.lineTo(-23+a*.5,bodyTop+25);ctx.moveTo(13,bodyTop+9);ctx.lineTo(23-a*.5,bodyTop+25);ctx.stroke()}ctx.restore();if(GRAPHICS.speedEffects&&!player.isSliding&&!player.isJumping&&game.speed>19){ctx.globalAlpha=.12;ctx.strokeStyle=THEME.player;ctx.lineWidth=3;for(let i=0;i<3;i++){ctx.beginPath();ctx.moveTo(x-20-i*4,bottom-20-i*7);ctx.lineTo(x-45-i*14,bottom-20-i*7);ctx.stroke()}ctx.globalAlpha=1}}
+function drawSpeedStreaks(){if(!GRAPHICS.speedEffects||game.speed<17)return;const intensity=clamp((game.speed-17)/13,0,1);ctx.save();ctx.globalAlpha=.12*intensity;ctx.strokeStyle="#d7f8ff";for(let i=0;i<18;i++){const x=random(0,width),y=random(road.horizonY,height),len=random(10,45)*intensity;ctx.lineWidth=random(.5,1.8);ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+(x-width/2)*.025,y+len);ctx.stroke()}ctx.restore()}
+function drawParticles(){for(const p of game.particles){const a=clamp(p.life/p.maxLife,0,1);ctx.globalAlpha=a*.7;ctx.fillStyle=p.type==="impact"?THEME.player:"#c8d0d8";ctx.beginPath();ctx.arc(p.x,p.y,p.size*(.6+a*.5),0,Math.PI*2);ctx.fill()}ctx.globalAlpha=1}
+function render(){updateRoadGeometry();updatePlayerPosition();drawBackground();drawEnvironment();drawRoad();drawSpeedStreaks();drawObstacles();drawPlayer();drawParticles();if(game.flash>0){ctx.fillStyle=`rgba(255,255,255,${game.flash})`;ctx.fillRect(0,0,width,height);game.flash=Math.max(0,game.flash-.03)}}
+function updateHUD(){distanceValue.textContent=Math.floor(game.distance)+" m";speedValue.textContent=game.speed.toFixed(1)}
+function resetGame(){game.running=true;game.gameOver=false;game.elapsed=0;game.distance=0;game.speed=12;game.spawnTimer=0;game.spawnInterval=1.15;game.obstacles=[];game.particles=[];game.roadOffset=0;game.shake=0;game.flash=0;player.targetLane=1;player.lanePosition=1;player.lane=1;player.y=0;player.verticalVelocity=0;player.isJumping=false;player.isSliding=false;player.slideTimer=0;player.rotation=0;camera.x=0;camera.y=0;resetEnvironment();updateRoadGeometry();updatePlayerPosition();updateHUD()}
+function startGame(){resetGame();startScreen.classList.add("hidden");gameOverScreen.classList.add("hidden");game.lastTime=performance.now();requestAnimationFrame(gameLoop)}
+function gameOver(){if(!game.running)return;game.running=false;game.gameOver=true;game.flash=.10;game.shake=.16;finalDistance.textContent=Math.floor(game.distance)+" m";gameOverScreen.classList.remove("hidden")}
+function update(dt){if(!game.running)return;game.elapsed+=dt;updateDifficulty(dt);updatePlayer(dt);updateCamera(dt);updateSpawning(dt);updateObstacles(dt);updateEnvironment(dt);updateDistance(dt);game.roadOffset=(game.roadOffset+game.speed*dt*.012)%1;createDust();updateParticles(dt);checkCollisions();updateHUD()}
+function gameLoop(timestamp){let dt=(timestamp-game.lastTime)/1000;dt=Math.min(dt,.05);game.lastTime=timestamp;update(dt);render();if(game.running)requestAnimationFrame(gameLoop)}
+startButton.addEventListener("click",startGame);restartButton.addEventListener("click",startGame);
+resizeCanvas();resetEnvironment();updatePlayerPosition();render();
+</script>
+</body>
+</html>
